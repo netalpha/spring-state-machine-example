@@ -1,14 +1,13 @@
 package com.statemachine.statemachinejpapersistanceexample20.config;
 
-import java.util.EnumSet;
+import java.util.Arrays;
+import java.util.HashSet;
 
+import com.statemachine.statemachinejpapersistanceexample20.enums.PartyEvent;
+import com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import org.springframework.statemachine.StateContext;
-import org.springframework.statemachine.action.Action;
-import org.springframework.statemachine.config.EnableStateMachine;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.StateMachineFactory;
@@ -17,26 +16,19 @@ import org.springframework.statemachine.config.builders.StateMachineStateConfigu
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
 import org.springframework.statemachine.data.jpa.JpaPersistingStateMachineInterceptor;
 import org.springframework.statemachine.data.jpa.JpaStateMachineRepository;
-import org.springframework.statemachine.guard.Guard;
-import org.springframework.statemachine.listener.StateMachineListener;
-import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.persist.StateMachineRuntimePersister;
 import org.springframework.statemachine.service.DefaultStateMachineService;
 import org.springframework.statemachine.service.StateMachineService;
-import org.springframework.statemachine.state.State;
-
-import com.statemachine.statemachinejpapersistanceexample20.enums.Events;
-import com.statemachine.statemachinejpapersistanceexample20.enums.States;
 
 @Configuration
 @EnableStateMachineFactory
-public class StateMachineConfig extends StateMachineConfigurerAdapter<States, Events> { 
+public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatus, PartyEvent> {
 	
 	@Autowired
 	private JpaStateMachineRepository jpaStateMachineRepository;
 
     @Override
-    public void configure(StateMachineConfigurationConfigurer<States, Events> config)
+    public void configure(StateMachineConfigurationConfigurer<PartyStatus, PartyEvent> config)
             throws Exception {
         config
 		.withPersistence()
@@ -45,51 +37,145 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<States, Ev
     
 
     @Override
-    public void configure(StateMachineStateConfigurer<States, Events> states)
+    public void configure(StateMachineStateConfigurer<PartyStatus, PartyEvent> states)
             throws Exception {
-        states
-		        .withStates()
-		        .initial(States.I)
-		        .states(EnumSet.allOf(States.class));
+		states
+						.withStates()
+						.initial(PartyStatus.INCOMPLETE)
+						.state(PartyStatus.COMPLETE)
+						.fork(PartyStatus.FORK_UNDER_REVIEW)
+						.state(PartyStatus.UNDER_REVIEW)
+						.join(PartyStatus.JOIN_UNDER_REVIEW)
+						.state(PartyStatus.ACTIVE)
+//						.state(PartyStatus.DELETED)
+//						.state(PartyStatus.CLOSED)
+//						.state(PartyStatus.SUSPENDED)
+
+						.and()
+						.withStates()
+						.parent(PartyStatus.UNDER_REVIEW)
+						.initial(PartyStatus.KYC_NOT_DONE)
+//						.states(new HashSet<>(Arrays.asList(PartyStatus.KYC_IN_PROGRESS, PartyStatus.KYC_UNDER_REVIEW, PartyStatus.KYC_WAITING_FOR_DOCUMENTS)))
+						.end(PartyStatus.KYC_NOT_REQUIRED)
+						.end(PartyStatus.KYC_COMPLETED)
+
+						.and()
+						.withStates()
+						.parent(PartyStatus.UNDER_REVIEW)
+						.initial(PartyStatus.SANCTION_NOT_DONE)
+						.states(new HashSet<>(Arrays.asList(PartyStatus.SANCTION_IN_PROGRESS
+//										,
+//															PartyStatus.SANCTION_UNCONFIRMED,
+//															PartyStatus.SANCTION_CONFIRMED,
+//															PartyStatus.SANCTION_WAIVED
+								)
+								)
+						)
+						.end(PartyStatus.SANCTION_PASSED)
+
+						.and()
+						.withStates()
+						.parent(PartyStatus.UNDER_REVIEW)
+						.initial(PartyStatus.PEP_NOT_DONE)
+						.states(new HashSet<>(Arrays.asList(PartyStatus.PEP_IN_PROGRESS
+//										,
+//															PartyStatus.PEP_UNCONFIRMED,
+//															PartyStatus.PEP_CONFIRMED,
+//															PartyStatus.PEP_WAIVED
+						)))
+						.end(PartyStatus.PEP_PASSED);
     }
     
     @Override
-    public void configure(StateMachineTransitionConfigurer<States, Events> transitions)
+    public void configure(StateMachineTransitionConfigurer<PartyStatus, PartyEvent> transitions)
             throws Exception {
-        transitions
-              .withExternal()
-                .source(States.I).target(States.A).event(Events.E1);
+		transitions.
+						withExternal()
+						.source(PartyStatus.INCOMPLETE)
+						.target(PartyStatus.COMPLETE)
+						.event(PartyEvent.NEW)
+//						.guard(isPartyAndAddressComplete())
+						.and()
+
+//						.withExternal()
+//						.source(PartyStatus.INCOMPLETE)
+//						.target(PartyStatus.COMPLETE)
+//						.event(PartyEvent.UPDATE)
+////						.guard(isPartyAndAddressComplete())
+//						.and()
+
+						.withExternal()
+						.source(PartyStatus.COMPLETE)
+						.target(PartyStatus.FORK_UNDER_REVIEW)
+//						.guard(isPartyAndAddressComplete())
+						.and()
+
+						.withFork() // FORK
+						.source(PartyStatus.FORK_UNDER_REVIEW)
+						.target(PartyStatus.UNDER_REVIEW)
+						.and()
+
+						// KYC
+
+						.withExternal()
+						.source(PartyStatus.KYC_NOT_DONE)
+						.target(PartyStatus.KYC_NOT_REQUIRED)
+				   		.event(PartyEvent.KYC_NOT_REQUIRED)
+//						.guard(isPartyEqualTo(PartyType.BENEFICIARY))
+						.action((ctx) -> System.out.println("kyc-not-required"))
+						.and()
+
+						// Sanction
+						.withExternal()
+						.source(PartyStatus.SANCTION_NOT_DONE)
+						.target(PartyStatus.SANCTION_IN_PROGRESS)
+				   		.event(PartyEvent.SANCTION_INPROGRESS)
+						.action(ctx -> System.out.println("sanc-in-progress"))
+						.and()
+
+						.withExternal()
+						.source(PartyStatus.SANCTION_IN_PROGRESS)
+						.target(PartyStatus.SANCTION_PASSED)
+						.event(PartyEvent.SANCTION_PASSED)
+						.action((ctx) -> System.out.println("sanc-passed"))
+						.and()
+
+						// PEP
+						.withExternal()
+						.source(PartyStatus.PEP_NOT_DONE)
+						.target(PartyStatus.PEP_IN_PROGRESS)
+						.and()
+
+						.withExternal()
+						.source(PartyStatus.PEP_IN_PROGRESS)
+						.target(PartyStatus.PEP_PASSED)
+						.event(PartyEvent.PEP_PASSED)
+						.action((ctx) -> System.out.println("pep-passed"))
+						.and()
+
+						// JOIN
+						.withJoin()
+						.source(PartyStatus.UNDER_REVIEW)
+						.target(PartyStatus.JOIN_UNDER_REVIEW)
+						.and()
+
+						.withExternal()
+						.source(PartyStatus.JOIN_UNDER_REVIEW)
+						.target(PartyStatus.ACTIVE)
+						;
     }
  
     
 
 
 	@Bean
-	public StateMachineRuntimePersister<States, Events, String> stateMachineRuntimePersister() {
+	public StateMachineRuntimePersister<PartyStatus, PartyEvent, String> stateMachineRuntimePersister() {
 		return new JpaPersistingStateMachineInterceptor<>(jpaStateMachineRepository);
 	}
     
     @Bean
-	public StateMachineService<States, Events> stateMachineService(StateMachineFactory<States, Events> stateMachineFactory,
-			StateMachineRuntimePersister<States, Events, String> stateMachineRuntimePersister) {
-		return new DefaultStateMachineService<States, Events>(stateMachineFactory, stateMachineRuntimePersister);
+	public StateMachineService<PartyStatus, PartyEvent> stateMachineService(StateMachineFactory<PartyStatus, PartyEvent> stateMachineFactory,
+			StateMachineRuntimePersister<PartyStatus, PartyEvent, String> stateMachineRuntimePersister) {
+		return new DefaultStateMachineService(stateMachineFactory, stateMachineRuntimePersister);
 	}
-    
-    
-  	 @Bean
-	    public StateMachineListener<States, Events> listener() {
-	
-	        return new StateMachineListenerAdapter<States, Events>() {
-	            @Override
-	            public void stateChanged(State<States, Events> from, State<States, Events> to) {
-	            	System.out.println("Listerner : In state chnaged");
-	                if (from == null) {
-	                    System.out.println("State machine initialised in state " + to.getId());
-	                } else {
-	                    System.out.println("State changed from " + from.getId() + " to " + to.getId());
-	                }
-	            }
-	        };
-	    }
-	
 }

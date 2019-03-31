@@ -1,74 +1,106 @@
+/*
+ * Copyright 2017-2018 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.statemachine.statemachinejpapersistanceexample20.cotroller;
 
-import java.util.Map;
-
+import com.statemachine.statemachinejpapersistanceexample20.config.StateMachineLogListener;
+import com.statemachine.statemachinejpapersistanceexample20.enums.PartyEvent;
+import com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.statemachine.StateMachine;
+import org.springframework.statemachine.StateMachineContext;
+import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.service.StateMachineService;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.util.ObjectUtils;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
-import com.statemachine.statemachinejpapersistanceexample20.enums.Events;
-import com.statemachine.statemachinejpapersistanceexample20.enums.States;
+import java.util.EnumSet;
+import java.util.List;
 
-
-
-@RestController
-@RequestMapping("/StateMachine")
+@Controller
 public class StateMachineController {
-	
-	StateMachine<States, Events> stateMachine;
-	
+
+	public final static String MACHINE_ID_1 = "datajpapersist1";
+	public final static String MACHINE_ID_2 = "datajpapersist2";
+	private final static String[] MACHINES = new String[] { MACHINE_ID_1, MACHINE_ID_2 };
+
+	private final StateMachineLogListener listener = new StateMachineLogListener();
+	private StateMachine<PartyStatus, PartyEvent> currentStateMachine;
+
 	@Autowired
-	private StateMachineService<States, Events> stateMachineService;
-	
-	@RequestMapping(value = "/init",method = RequestMethod.POST)
-    public void init(@RequestBody Map<String, String> parameters) {
-		System.out.println("Inside of StateMachine Controller : INIT");
-		
-		try {
-			// Get New StateMachine
-			stateMachine = getStateMachine(parameters.get("guid"));
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		System.out.println("StateMachine Initialized To State :" + stateMachine.getState().toString());
-		
-		
+	private StateMachineService<PartyStatus, PartyEvent> stateMachineService;
+
+	@Autowired
+	private StateMachinePersist<PartyStatus, PartyEvent, String> stateMachinePersist;
+
+	@RequestMapping("/")
+	public String home() {
+		return "redirect:/state";
 	}
-	
-	@RequestMapping(value = "/proceed",method = RequestMethod.POST)
-	public void proceed(@RequestBody Map<String, String> parameters) {
-		System.out.println("Inside of  StateMachine Controller : PROCEED ");
-		try {
-			// Get New StateMachine
-			stateMachine = getStateMachine(parameters.get("guid"));
-			System.out.println("StateMachine Reset and Started To State :" + stateMachine.getState().toString());
-			// Sending Event
-			stateMachine.sendEvent(Events.valueOf(parameters.get("event")));
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+
+	@RequestMapping("/state")
+	public String feedAndGetStates(
+			@RequestParam(value = "events", required = false) List<PartyEvent> events,
+			@RequestParam(value = "machine", required = false, defaultValue = MACHINE_ID_1) String machine,
+			Model model) throws Exception {
+		StateMachine<PartyStatus, PartyEvent> stateMachine = getStateMachine(machine);
+		if (events != null) {
+			for (PartyEvent event : events) {
+				stateMachine.sendEvent(event);
+			}
 		}
-		System.out.println("StateMachine Proceeded To State :" + stateMachine.getState().toString());
+		StateMachineContext<PartyStatus, PartyEvent> stateMachineContext = stateMachinePersist.read(machine);
+		model.addAttribute("allMachines", MACHINES);
+		model.addAttribute("machine", machine);
+		model.addAttribute("allEvents", getEvents());
+		model.addAttribute("messages", createMessages(listener.getMessages()));
+		model.addAttribute("context", stateMachineContext != null ? stateMachineContext.toString() : "");
+		return "states";
 	}
-	
-	// Synchronized method to obtain persisted SM from Database.
-	private synchronized StateMachine<States, Events> getStateMachine(String machineId) throws Exception {
-		if (stateMachine == null) {
-			stateMachine = stateMachineService.acquireStateMachine(machineId);
-			stateMachine.start();
-		} else if (!ObjectUtils.nullSafeEquals(stateMachine.getId(), machineId)) {
-			stateMachineService.releaseStateMachine(stateMachine.getId());
-			stateMachine.stop();
-			stateMachine = stateMachineService.acquireStateMachine(machineId);
-			stateMachine.start();
+
+//tag::snippetA[]
+	private synchronized StateMachine<PartyStatus, PartyEvent> getStateMachine(String machineId) throws Exception {
+		listener.resetMessages();
+		if (currentStateMachine == null) {
+			currentStateMachine = stateMachineService.acquireStateMachine(machineId);
+			currentStateMachine.addStateListener(listener);
+			currentStateMachine.start();
+		} else if (!ObjectUtils.nullSafeEquals(currentStateMachine.getId(), machineId)) {
+			stateMachineService.releaseStateMachine(currentStateMachine.getId());
+			currentStateMachine.stop();
+			currentStateMachine = stateMachineService.acquireStateMachine(machineId);
+			currentStateMachine.addStateListener(listener);
+			currentStateMachine.start();
 		}
-		return stateMachine;
+		return currentStateMachine;
+	}
+//end::snippetA[]
+
+	private PartyEvent[] getEvents() {
+		return EnumSet.allOf(PartyEvent.class).toArray(new PartyEvent[0]);
+	}
+
+	private String createMessages(List<String> messages) {
+		StringBuilder buf = new StringBuilder();
+		for (String message : messages) {
+			buf.append(message);
+			buf.append("\n");
+		}
+		return buf.toString();
 	}
 }
