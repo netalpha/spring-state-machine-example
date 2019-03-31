@@ -37,7 +37,14 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
     @Override
     public void configure(StateMachineStateConfigurer<PartyStatus, PartyEvent> states) throws Exception {
         states.withStates()
+              .initial(S0)
+              .state(PartyStatus.S0)
+              .and()
+
+              .withStates()
+              .parent(S0)
               .initial(PartyStatus.INCOMPLETE)
+              .state(INCOMPLETE)
               .state(PartyStatus.COMPLETE)
               .fork(PartyStatus.FORK_UNDER_REVIEW)
               .state(PartyStatus.UNDER_REVIEW)
@@ -61,10 +68,10 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
               .parent(PartyStatus.UNDER_REVIEW)
               .initial(PartyStatus.SANCTION_NOT_DONE)
               .states(new HashSet<>(Arrays.asList(PartyStatus.SANCTION_IN_PROGRESS
-                              //										,
-                              //															PartyStatus.SANCTION_UNCONFIRMED,
-                              //															PartyStatus.SANCTION_CONFIRMED,
-                              //															PartyStatus.SANCTION_WAIVED
+                                                  //										,
+                                                  //															PartyStatus.SANCTION_UNCONFIRMED,
+                                                  //															PartyStatus.SANCTION_CONFIRMED,
+                                                  //															PartyStatus.SANCTION_WAIVED
               )))
               .end(PartyStatus.SANCTION_PASSED)
 
@@ -73,21 +80,20 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
               .parent(PartyStatus.UNDER_REVIEW)
               .initial(PartyStatus.PEP_NOT_DONE)
               .states(new HashSet<>(Arrays.asList(PartyStatus.PEP_IN_PROGRESS
-                              //										,
-                              //															PartyStatus.PEP_UNCONFIRMED,
-                              //															PartyStatus.PEP_CONFIRMED,
-                              //															PartyStatus.PEP_WAIVED
+                                                  //										,
+                                                  //															PartyStatus.PEP_UNCONFIRMED,
+                                                  //															PartyStatus.PEP_CONFIRMED,
+                                                  //															PartyStatus.PEP_WAIVED
               )))
               .end(PartyStatus.PEP_PASSED)
 
               .and()
               .withStates()
               .parent(COMPLIANCE_STATUS)
-        .initial(PartyStatus.COMPLIANCE_NOT_DONE)
-        .state(PartyStatus.COMPLIANCE_UNDER_REVIEW)
-        .state(PartyStatus.COMPLIANCE_PASSED)
-        .end(PartyStatus.COMPLIANCE_DONE)
-        ;
+              .initial(PartyStatus.COMPLIANCE_NOT_DONE)
+              .state(PartyStatus.COMPLIANCE_UNDER_REVIEW)
+              .state(PartyStatus.COMPLIANCE_PASSED)
+              .end(PartyStatus.COMPLIANCE_DONE);
     }
 
     @Override

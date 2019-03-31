@@ -43,7 +43,7 @@ public enum PartyStatus {
     // Salesforce
 //    CLOSED,
 //    SUSPENDED
-    COMPLIANCE_STATUS, COMPLIANCE_NOT_DONE, COMPLIANCE_UNDER_REVIEW, COMPLIANCE_PASSED, COMPLIANCE_DONE;
+    COMPLIANCE_STATUS, COMPLIANCE_NOT_DONE, COMPLIANCE_UNDER_REVIEW, COMPLIANCE_PASSED, COMPLIANCE_DONE, S0;
 
     public static Optional<PartyStatus> fromString(String status) {
         return Stream.of(PartyStatus.values()).filter(t -> t.name().equalsIgnoreCase(status)).findFirst();
