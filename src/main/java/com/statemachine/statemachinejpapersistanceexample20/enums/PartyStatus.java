@@ -7,7 +7,13 @@ import java.util.stream.Stream;
 
 public enum PartyStatus {
 
-    INCOMPLETE, COMPLETE,
+    S0,
+
+    INCOMPLETE,
+
+    CHOICE_PROFILE_COMPLETE,
+
+    COMPLETE,
 
     FORK_UNDER_REVIEW,
     UNDER_REVIEW,
@@ -15,35 +21,29 @@ public enum PartyStatus {
 
     // KYC
     KYC_NOT_DONE,
-//    KYC_IN_PROGRESS,
-//    KYC_WAITING_FOR_DOCUMENTS,
-    KYC_UNDER_REVIEW,
-    KYC_COMPLETED,
+    KYC_IN_PROGRESS,
     KYC_NOT_REQUIRED,
+    KYC_DONE,
 
     // Sanction
     SANCTION_NOT_DONE,
     SANCTION_IN_PROGRESS,
-//    SANCTION_UNCONFIRMED,
-//    SANCTION_CONFIRMED,
-//    SANCTION_WAIVED,
     SANCTION_PASSED,
+    SANCTION_DONE,
 
     //PEP
     PEP_NOT_DONE,
     PEP_IN_PROGRESS,
-//    PEP_CONFIRMED,
-//    PEP_WAIVED,
-//    PEP_UNCONFIRMED,
     PEP_PASSED,
+    PEP_DONE,
 
-//    DELETED,
+    //saleforce
     ACTIVE,
+    DELETED,
+    COMPLIANCE_STATUS,
 
-    // Salesforce
-//    CLOSED,
-//    SUSPENDED
-    COMPLIANCE_STATUS, COMPLIANCE_NOT_DONE, COMPLIANCE_UNDER_REVIEW, COMPLIANCE_PASSED, COMPLIANCE_DONE, S0, LIVE;
+    //compliance
+    COMPLIANCE_NOT_DONE, COMPLIANCE_UNDER_REVIEW, COMPLIANCE_PASSED, COMPLIANCE_DONE, BANK_NOT_DONE, BAN_IN_PROGRESS, BANK_PASSED, BANK_IN_PROGRESS, BANK_NOT_REQUIRED, BANK_DONE, CHOICE_BANK_CHECK;
 
     public static Optional<PartyStatus> fromString(String status) {
         return Stream.of(PartyStatus.values()).filter(t -> t.name().equalsIgnoreCase(status)).findFirst();

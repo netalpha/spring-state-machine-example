@@ -2,14 +2,12 @@ package com.statemachine.statemachinejpapersistanceexample20.config;
 
 import static com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus.*;
 
-import java.util.Arrays;
-import java.util.HashSet;
-
 import com.statemachine.statemachinejpapersistanceexample20.enums.PartyEvent;
 import com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.statemachine.StateContext;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.StateMachineFactory;
@@ -46,86 +44,74 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
               .parent(S0)
               .initial(PartyStatus.INCOMPLETE)
               .state(INCOMPLETE)
+              .choice(PartyStatus.CHOICE_PROFILE_COMPLETE)
               .state(PartyStatus.COMPLETE)
               .fork(PartyStatus.FORK_UNDER_REVIEW)
               .state(PartyStatus.UNDER_REVIEW)
-//              .state(COMPLIANCE_STATUS)
               .join(PartyStatus.JOIN_UNDER_REVIEW)
-              .state(PartyStatus.ACTIVE)
-              .state(LIVE)
-              //						.state(PartyStatus.DELETED)
-              //						.state(PartyStatus.CLOSED)
-              //						.state(PartyStatus.SUSPENDED)
+              .state(COMPLIANCE_STATUS)
+              .state(ACTIVE)
+              .state(PartyStatus.DELETED)
 
               .and()
               .withStates()
               .parent(PartyStatus.UNDER_REVIEW)
               .initial(PartyStatus.KYC_NOT_DONE)
-              //						.states(new HashSet<>(Arrays.asList(PartyStatus.KYC_IN_PROGRESS, PartyStatus.KYC_UNDER_REVIEW, PartyStatus.KYC_WAITING_FOR_DOCUMENTS)))
-              .end(PartyStatus.KYC_NOT_REQUIRED)
-              .end(PartyStatus.KYC_COMPLETED)
+              .state(KYC_IN_PROGRESS)
+              .state(PartyStatus.KYC_NOT_REQUIRED)
+              .end(PartyStatus.KYC_DONE)
 
               .and()
               .withStates()
               .parent(PartyStatus.UNDER_REVIEW)
               .initial(PartyStatus.SANCTION_NOT_DONE)
-              .states(new HashSet<>(Arrays.asList(PartyStatus.SANCTION_IN_PROGRESS
-                                                  //										,
-                                                  //															PartyStatus.SANCTION_UNCONFIRMED,
-                                                  //															PartyStatus.SANCTION_CONFIRMED,
-                                                  //															PartyStatus.SANCTION_WAIVED
-              )))
-              .end(PartyStatus.SANCTION_PASSED)
+              .state(PartyStatus.SANCTION_IN_PROGRESS)
+              .state(PartyStatus.SANCTION_PASSED)
+              .end(SANCTION_DONE)
 
               .and()
               .withStates()
               .parent(PartyStatus.UNDER_REVIEW)
               .initial(PartyStatus.PEP_NOT_DONE)
-              .states(new HashSet<>(Arrays.asList(PartyStatus.PEP_IN_PROGRESS
-                                                  //										,
-                                                  //															PartyStatus.PEP_UNCONFIRMED,
-                                                  //															PartyStatus.PEP_CONFIRMED,
-                                                  //															PartyStatus.PEP_WAIVED
-              )))
-              .end(PartyStatus.PEP_PASSED)
+              .state(PartyStatus.PEP_IN_PROGRESS)
+              .state(PartyStatus.PEP_PASSED)
+              .end(PEP_DONE)
 
-//              .and()
-//              .withStates()
-//              .parent(COMPLIANCE_STATUS)
-//              .initial(PartyStatus.COMPLIANCE_NOT_DONE)
-//              .state(PartyStatus.COMPLIANCE_UNDER_REVIEW)
-//              .state(PartyStatus.COMPLIANCE_PASSED)
-//              .end(PartyStatus.COMPLIANCE_DONE);
+              .and()
+              .withStates()
+                .parent(UNDER_REVIEW)
+                .initial(PartyStatus.BANK_NOT_DONE)
+                 .choice(PartyStatus.CHOICE_BANK_CHECK)
+                .state(PartyStatus.BANK_IN_PROGRESS)
+                .state(PartyStatus.BANK_PASSED)
+                .state(PartyStatus.BANK_NOT_REQUIRED)
+                .end(PartyStatus.BANK_DONE)
+
         ;
     }
 
     @Override
     public void configure(StateMachineTransitionConfigurer<PartyStatus, PartyEvent> transitions) throws Exception {
-        transitions.
-                                   withExternal()
+        transitions.withExternal()
                    .source(INCOMPLETE)
-                   .target(COMPLETE)
+                   .target(CHOICE_PROFILE_COMPLETE)
                    .event(PartyEvent.NEW)
-                   //						.guard(isPartyAndAddressComplete())
                    .and()
 
-                   //						.withExternal()
-                   //						.source(PartyStatus.INCOMPLETE)
-                   //						.target(PartyStatus.COMPLETE)
-                   //						.event(PartyEvent.UPDATE)
-                   ////						.guard(isPartyAndAddressComplete())
-                   //						.and()
+                   .withChoice()
+                   .source(CHOICE_PROFILE_COMPLETE)
+                   .first(COMPLETE, ctx -> true)
+                   .last(INCOMPLETE)
+                   .and()
 
                    .withExternal()
                    .source(COMPLETE)
                    .target(FORK_UNDER_REVIEW)
-                   //						.guard(isPartyAndAddressComplete())
                    .and()
 
                    .withFork() // FORK
                    .source(FORK_UNDER_REVIEW)
                    .target(UNDER_REVIEW)
-//                   .target(COMPLIANCE_STATUS)
                    .and()
 
                    // KYC
@@ -134,8 +120,13 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
                    .source(KYC_NOT_DONE)
                    .target(KYC_NOT_REQUIRED)
                    .event(PartyEvent.KYC_NOT_REQUIRED)
-                   //						.guard(isPartyEqualTo(PartyType.BENEFICIARY))
                    .action((ctx) -> System.out.println("kyc-not-required"))
+                   .and()
+
+                   .withExternal()
+                   .source(KYC_NOT_REQUIRED)
+                   .target(KYC_DONE)
+                   .action(ctx -> System.out.println("kyc-done"))
                    .and()
 
                    // Sanction
@@ -153,10 +144,18 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
                    .action((ctx) -> System.out.println("sanc-passed"))
                    .and()
 
+                   .withExternal()
+                   .source(SANCTION_PASSED)
+                   .target(SANCTION_DONE)
+                   .action(ctx -> System.out.println("sanc-done"))
+                   .and()
+
                    // PEP
                    .withExternal()
                    .source(PEP_NOT_DONE)
                    .target(PEP_IN_PROGRESS)
+//                   .event(PartyEvent.PEP_INPROGRESS)
+                   .action(ctx -> System.out.println("pep-inprogress"))
                    .and()
 
                    .withExternal()
@@ -166,56 +165,79 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatu
                    .action((ctx) -> System.out.println("pep-passed"))
                    .and()
 
-//                   .withExternal()
-//                   .source(COMPLIANCE_NOT_DONE)
-//                   .target(COMPLIANCE_UNDER_REVIEW)
-//                   .event(PartyEvent.COMPLIANCE_UNDER_REVIEW)
-//                   .and()
-//
-//                   .withExternal()
-//                   .source(COMPLIANCE_UNDER_REVIEW)
-//                   .target(COMPLIANCE_PASSED)
-//                   .event(PartyEvent.COMPLIANCE_PASSED)
-//                   .and()
-//
-//                   .withExternal()
-//                   .source(COMPLIANCE_PASSED)
-//                   .target(COMPLIANCE_DONE)
-//                   .and()
+                   .withExternal()
+                   .source(PEP_PASSED)
+                   .target(PEP_DONE)
+                   .action(ctx -> System.out.println("pep-done"))
+                   .and()
+
+                   // bank
+                   .withExternal()
+                   .source(BANK_NOT_DONE)
+                   .target(CHOICE_BANK_CHECK)
+                   .action(ctx -> System.out.println("bank-choice"))
+                   .and()
+
+                   .withChoice()
+                   .source(CHOICE_BANK_CHECK)
+                   .first(BANK_IN_PROGRESS, this::isBankCheckNeeded)
+                   .last(BANK_NOT_REQUIRED, ctx -> System.out.println("bank-not-required"))
+                   .and()
+
+                   .withExternal()
+                   .source(BANK_NOT_REQUIRED)
+                   .target(BANK_DONE)
+                   .and()
+
+                   .withExternal()
+                   .source(BANK_IN_PROGRESS)
+                   .target(BANK_PASSED)
+                   .event(PartyEvent.BANK_PASSED)
+                   .action((ctx) -> System.out.println("bank-passed"))
+                   .and()
+
+                   .withExternal()
+                   .source(BANK_PASSED)
+                   .target(BANK_DONE)
+                   .action(ctx -> System.out.println("bank-done"))
+                   .and()
 
                    // JOIN
                    .withJoin()
-//                   .source(COMPLIANCE_STATUS)
                    .source(UNDER_REVIEW)
                    .target(JOIN_UNDER_REVIEW)
                    .and()
 
                    .withExternal()
                    .source(JOIN_UNDER_REVIEW)
-                   .target(ACTIVE)
-                   .guard(isCompliancePassed())
-                   .action(ctx -> System.out.println("passed or not"))
-                    .and()
-
-                   .withExternal()
-                   .source(ACTIVE)
-                   .target(PartyStatus.LIVE)
-                   .guard(isCompliancePassed())
-                   .action(ctx -> System.out.println("passed"))
+                   .target(COMPLIANCE_STATUS)
+                   .guard(ctx -> true)
+                   .action(ctx -> System.out.println("compliance-status"))
                    .and()
 
-        .withInternal()
-        .source(S0)
-        .event(PartyEvent.COMPLIANCE_UNDER_REVIEW)
-        .action(ctx -> ctx.getExtendedState().getVariables().put("compliance_status", "review"))
-        .and()
+                   .withExternal()
+                   .source(COMPLIANCE_STATUS)
+                   .target(ACTIVE)
+                   .guard(isCompliancePassed())
+                   .action(ctx -> System.out.println("compliance passed"))
+                   .and()
 
-        .withInternal()
-        .source(S0)
-        .event(PartyEvent.COMPLIANCE_PASSED)
+                   .withInternal()
+                   .source(S0)
+                   .event(PartyEvent.COMPLIANCE_UNDER_REVIEW)
+                   .action(ctx -> ctx.getExtendedState().getVariables().put("compliance_status", "review"))
+                   .and()
+
+                   .withInternal()
+                   .source(S0)
+                   .event(PartyEvent.COMPLIANCE_PASSED)
                    .action(ctx -> ctx.getExtendedState().getVariables().put("compliance_status", "passed"))
 
         ;
+    }
+
+    private boolean isBankCheckNeeded(StateContext<PartyStatus, PartyEvent> context) {
+        return false;
     }
 
     private Guard<PartyStatus, PartyEvent> isCompliancePassed() {

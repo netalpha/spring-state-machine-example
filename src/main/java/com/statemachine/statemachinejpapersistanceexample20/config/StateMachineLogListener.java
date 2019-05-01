@@ -43,9 +43,10 @@ public class StateMachineLogListener extends StateMachineListenerAdapter<PartySt
 		} else if (stateContext.getStage() == Stage.STATE_EXIT) {
 			messages.addFirst("Exit " + stateContext.getSource().getId());
 		} else if (stateContext.getStage() == Stage.STATEMACHINE_START) {
-			messages.addLast("Machine started");
+			messages.addLast("Machine started" + stateContext.getStateMachine().getStates());
 		} else if (stateContext.getStage() == Stage.STATEMACHINE_STOP) {
-			messages.addFirst("Machine stopped");
+			messages.addFirst("Machine stopped" + stateContext.getStateMachine().getStates());
+
 		}
 	}
 }
