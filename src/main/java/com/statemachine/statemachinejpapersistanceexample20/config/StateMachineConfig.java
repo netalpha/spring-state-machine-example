@@ -1,13 +1,12 @@
 package com.statemachine.statemachinejpapersistanceexample20.config;
 
-import static com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus.*;
+import static com.statemachine.statemachinejpapersistanceexample20.enums.Status.*;
 
-import com.statemachine.statemachinejpapersistanceexample20.enums.PartyEvent;
-import com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus;
+import com.statemachine.statemachinejpapersistanceexample20.enums.Event;
+import com.statemachine.statemachinejpapersistanceexample20.enums.Status;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.statemachine.StateContext;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.StateMachineFactory;
@@ -23,239 +22,226 @@ import org.springframework.statemachine.service.StateMachineService;
 
 @Configuration
 @EnableStateMachineFactory
-public class StateMachineConfig extends StateMachineConfigurerAdapter<PartyStatus, PartyEvent> {
+public class StateMachineConfig extends StateMachineConfigurerAdapter<Status, Event> {
 
     @Autowired
     private JpaStateMachineRepository jpaStateMachineRepository;
 
     @Override
-    public void configure(StateMachineConfigurationConfigurer<PartyStatus, PartyEvent> config) throws Exception {
+    public void configure(StateMachineConfigurationConfigurer<Status, Event> config) throws Exception {
         config.withPersistence().runtimePersister(stateMachineRuntimePersister());
     }
 
     @Override
-    public void configure(StateMachineStateConfigurer<PartyStatus, PartyEvent> states) throws Exception {
+    public void configure(StateMachineStateConfigurer<Status, Event> states) throws Exception {
         states.withStates()
-              .initial(S0)
-              .state(PartyStatus.S0)
+              .initial(ROOT)
+              .state(Status.ROOT)
               .and()
 
               .withStates()
-              .parent(S0)
-              .initial(PartyStatus.INCOMPLETE)
-              .state(INCOMPLETE)
-              .choice(PartyStatus.CHOICE_PROFILE_COMPLETE)
-              .state(PartyStatus.COMPLETE)
-              .fork(PartyStatus.FORK_UNDER_REVIEW)
-              .state(PartyStatus.UNDER_REVIEW)
-              .join(PartyStatus.JOIN_UNDER_REVIEW)
-              .state(COMPLIANCE_STATUS)
-              .state(ACTIVE)
-              .state(PartyStatus.DELETED)
+              .parent(ROOT)
+              .initial(Status.S0)
+              .state(S0)
+              .state(Status.S1)
+              .fork(Status.FORK_S2)
+              .state(Status.S2)
+              .join(Status.JOIN_S2)
+              .state(S3)
+              .state(S4)
+              .state(Status.S5)
 
               .and()
               .withStates()
-              .parent(PartyStatus.UNDER_REVIEW)
-              .initial(PartyStatus.KYC_NOT_DONE)
-              .state(KYC_IN_PROGRESS)
-              .state(PartyStatus.KYC_NOT_REQUIRED)
-              .end(PartyStatus.KYC_DONE)
+              .parent(Status.S2)
+              .initial(Status.S21I)
+              .state(S21_IN_PROGRESS)
+              .state(Status.S21_NOT_REQUIRED)
+              .end(Status.S21E)
 
               .and()
               .withStates()
-              .parent(PartyStatus.UNDER_REVIEW)
-              .initial(PartyStatus.SANCTION_NOT_DONE)
-              .state(PartyStatus.SANCTION_IN_PROGRESS)
-              .state(PartyStatus.SANCTION_PASSED)
-              .end(SANCTION_DONE)
+              .parent(Status.S2)
+              .initial(Status.S22I)
+              .state(Status.S22_IN_PROGRESS)
+              .state(Status.S22_PASSED)
+              .end(S22E)
 
               .and()
               .withStates()
-              .parent(PartyStatus.UNDER_REVIEW)
-              .initial(PartyStatus.PEP_NOT_DONE)
-              .state(PartyStatus.PEP_IN_PROGRESS)
-              .state(PartyStatus.PEP_PASSED)
-              .end(PEP_DONE)
+              .parent(Status.S2)
+              .initial(Status.S23I)
+              .state(Status.S23_IN_PROGRESS)
+              .state(Status.S23_PASSED)
+              .end(S23E)
 
               .and()
               .withStates()
-                .parent(UNDER_REVIEW)
-                .initial(PartyStatus.BANK_NOT_DONE)
-                 .choice(PartyStatus.CHOICE_BANK_CHECK)
-                .state(PartyStatus.BANK_IN_PROGRESS)
-                .state(PartyStatus.BANK_PASSED)
-                .state(PartyStatus.BANK_NOT_REQUIRED)
-                .end(PartyStatus.BANK_DONE)
+                .parent(S2)
+                .initial(Status.S24I)
+                .choice(Status.CHOICE_S24)
+                .state(Status.S24_IN_PROGRESS)
+                .state(Status.S24_PASSED)
+                .state(Status.S24_NOT_REQUIRED)
+                .end(Status.S24E)
 
         ;
     }
 
     @Override
-    public void configure(StateMachineTransitionConfigurer<PartyStatus, PartyEvent> transitions) throws Exception {
+    public void configure(StateMachineTransitionConfigurer<Status, Event> transitions) throws Exception {
         transitions.withExternal()
-                   .source(INCOMPLETE)
-                   .target(CHOICE_PROFILE_COMPLETE)
-                   .event(PartyEvent.NEW)
-                   .and()
-
-                   .withChoice()
-                   .source(CHOICE_PROFILE_COMPLETE)
-                   .first(COMPLETE, ctx -> true)
-                   .last(INCOMPLETE)
+                   .source(S0)
+                   .target(S1)
+                   .event(Event.NEW)
                    .and()
 
                    .withExternal()
-                   .source(COMPLETE)
-                   .target(FORK_UNDER_REVIEW)
+                   .source(S1)
+                   .target(FORK_S2)
                    .and()
 
                    .withFork() // FORK
-                   .source(FORK_UNDER_REVIEW)
-                   .target(UNDER_REVIEW)
+                   .source(FORK_S2)
+                   .target(S2)
                    .and()
 
-                   // KYC
-
+                   // S21
                    .withExternal()
-                   .source(KYC_NOT_DONE)
-                   .target(KYC_NOT_REQUIRED)
-                   .event(PartyEvent.KYC_NOT_REQUIRED)
-                   .action((ctx) -> System.out.println("kyc-not-required"))
-                   .and()
-
-                   .withExternal()
-                   .source(KYC_NOT_REQUIRED)
-                   .target(KYC_DONE)
-                   .action(ctx -> System.out.println("kyc-done"))
-                   .and()
-
-                   // Sanction
-                   .withExternal()
-                   .source(SANCTION_NOT_DONE)
-                   .target(SANCTION_IN_PROGRESS)
-                   .event(PartyEvent.SANCTION_INPROGRESS)
-                   .action(ctx -> System.out.println("sanc-in-progress"))
+                   .source(S21I)
+                   .target(S21_NOT_REQUIRED)
+                   .event(Event.S21_NOT_REQUIRED)
+                   .action((ctx) -> System.out.println("s21-not-required"))
                    .and()
 
                    .withExternal()
-                   .source(SANCTION_IN_PROGRESS)
-                   .target(SANCTION_PASSED)
-                   .event(PartyEvent.SANCTION_PASSED)
-                   .action((ctx) -> System.out.println("sanc-passed"))
+                   .source(S21_NOT_REQUIRED)
+                   .target(S21E)
+                   .action(ctx -> System.out.println("s21-done"))
+                   .and()
+
+                   // s22
+                   .withExternal()
+                   .source(S22I)
+                   .target(S22_IN_PROGRESS)
+                   .event(Event.S22_IN_PROGRESS)
+                   .action(ctx -> System.out.println("s22-in-progress"))
                    .and()
 
                    .withExternal()
-                   .source(SANCTION_PASSED)
-                   .target(SANCTION_DONE)
-                   .action(ctx -> System.out.println("sanc-done"))
-                   .and()
-
-                   // PEP
-                   .withExternal()
-                   .source(PEP_NOT_DONE)
-                   .target(PEP_IN_PROGRESS)
-//                   .event(PartyEvent.PEP_INPROGRESS)
-                   .action(ctx -> System.out.println("pep-inprogress"))
+                   .source(S22_IN_PROGRESS)
+                   .target(S22_PASSED)
+                   .event(Event.S22_PASSED)
+                   .action((ctx) -> System.out.println("s22-passed"))
                    .and()
 
                    .withExternal()
-                   .source(PEP_IN_PROGRESS)
-                   .target(PEP_PASSED)
-                   .event(PartyEvent.PEP_PASSED)
-                   .action((ctx) -> System.out.println("pep-passed"))
+                   .source(S22_PASSED)
+                   .target(S22E)
+                   .action(ctx -> System.out.println("s22-done"))
+                   .and()
+
+                   // s23
+                   .withExternal()
+                   .source(S23I)
+                   .target(S23_IN_PROGRESS)
+                   .action(ctx -> System.out.println("s23-inprogress"))
                    .and()
 
                    .withExternal()
-                   .source(PEP_PASSED)
-                   .target(PEP_DONE)
-                   .action(ctx -> System.out.println("pep-done"))
+                   .source(S23_IN_PROGRESS)
+                   .target(S23_PASSED)
+                   .event(Event.S23_PASSED)
+                   .action((ctx) -> System.out.println("s23-passed"))
                    .and()
 
-                   // bank
                    .withExternal()
-                   .source(BANK_NOT_DONE)
-                   .target(CHOICE_BANK_CHECK)
-                   .action(ctx -> System.out.println("bank-choice"))
+                   .source(S23_PASSED)
+                   .target(S23E)
+                   .action(ctx -> System.out.println("s23-done"))
+                   .and()
+
+                   // s24
+                   .withExternal()
+                   .source(S24I)
+                   .target(CHOICE_S24)
+                   .action(ctx -> System.out.println("s24-choice"))
                    .and()
 
                    .withChoice()
-                   .source(CHOICE_BANK_CHECK)
-                   .first(BANK_IN_PROGRESS, this::isBankCheckNeeded)
-                   .last(BANK_NOT_REQUIRED, ctx -> System.out.println("bank-not-required"))
+                   .source(CHOICE_S24)
+                   .first(S24_IN_PROGRESS, ctx-> false)
+                   .last(S24_NOT_REQUIRED, ctx -> System.out.println("s24-not-required"))
                    .and()
 
                    .withExternal()
-                   .source(BANK_NOT_REQUIRED)
-                   .target(BANK_DONE)
+                   .source(S24_NOT_REQUIRED)
+                   .target(S24E)
                    .and()
 
                    .withExternal()
-                   .source(BANK_IN_PROGRESS)
-                   .target(BANK_PASSED)
-                   .event(PartyEvent.BANK_PASSED)
-                   .action((ctx) -> System.out.println("bank-passed"))
+                   .source(S24_IN_PROGRESS)
+                   .target(S24_PASSED)
+                   .event(Event.S24_PASSED)
+                   .action((ctx) -> System.out.println("s24-passed"))
                    .and()
 
                    .withExternal()
-                   .source(BANK_PASSED)
-                   .target(BANK_DONE)
-                   .action(ctx -> System.out.println("bank-done"))
+                   .source(S24_PASSED)
+                   .target(S24E)
+                   .action(ctx -> System.out.println("s24-done"))
                    .and()
 
                    // JOIN
                    .withJoin()
-                   .source(UNDER_REVIEW)
-                   .target(JOIN_UNDER_REVIEW)
+                   .source(S2)
+                   .target(JOIN_S2)
                    .and()
 
                    .withExternal()
-                   .source(JOIN_UNDER_REVIEW)
-                   .target(COMPLIANCE_STATUS)
+                   .source(JOIN_S2)
+                   .target(S3)
                    .guard(ctx -> true)
-                   .action(ctx -> System.out.println("compliance-status"))
+                   .action(ctx -> System.out.println("s3"))
                    .and()
 
                    .withExternal()
-                   .source(COMPLIANCE_STATUS)
-                   .target(ACTIVE)
-                   .guard(isCompliancePassed())
-                   .action(ctx -> System.out.println("compliance passed"))
+                   .source(S3)
+                   .target(S4)
+                   .guard(toggledVarTrue())
+                   .action(ctx -> System.out.println("toggle_status == 1"))
                    .and()
 
                    .withInternal()
-                   .source(S0)
-                   .event(PartyEvent.COMPLIANCE_UNDER_REVIEW)
-                   .action(ctx -> ctx.getExtendedState().getVariables().put("compliance_status", "review"))
+                   .source(ROOT)
+                   .event(Event.TOGGLE_STATUS_0)
+                   .action(ctx -> ctx.getExtendedState().getVariables().put("toggle_status", "0"))
                    .and()
 
                    .withInternal()
-                   .source(S0)
-                   .event(PartyEvent.COMPLIANCE_PASSED)
-                   .action(ctx -> ctx.getExtendedState().getVariables().put("compliance_status", "passed"))
+                   .source(ROOT)
+                   .event(Event.TOGGLE_STATUS_1)
+                   .action(ctx -> ctx.getExtendedState().getVariables().put("toggle_status", "1"))
 
         ;
     }
 
-    private boolean isBankCheckNeeded(StateContext<PartyStatus, PartyEvent> context) {
-        return false;
-    }
-
-    private Guard<PartyStatus, PartyEvent> isCompliancePassed() {
+    private Guard<Status, Event> toggledVarTrue() {
 
         return context -> {
-            boolean guard = String.valueOf(context.getExtendedState().get("compliance_status", String.class)).equalsIgnoreCase("passed");
+            boolean guard = String.valueOf(context.getExtendedState().get("toggle_status", String.class)).equalsIgnoreCase("1");
             return guard;
         };
     }
 
     @Bean
-    public StateMachineRuntimePersister<PartyStatus, PartyEvent, String> stateMachineRuntimePersister() {
+    public StateMachineRuntimePersister<Status, Event, String> stateMachineRuntimePersister() {
         return new JpaPersistingStateMachineInterceptor<>(jpaStateMachineRepository);
     }
 
     @Bean
-    public StateMachineService<PartyStatus, PartyEvent> stateMachineService(StateMachineFactory<PartyStatus, PartyEvent> stateMachineFactory,
-                                                                            StateMachineRuntimePersister<PartyStatus, PartyEvent, String> stateMachineRuntimePersister) {
+    public StateMachineService<Status, Event> stateMachineService(StateMachineFactory<Status, Event> stateMachineFactory,
+                                                                  StateMachineRuntimePersister<Status, Event, String> stateMachineRuntimePersister) {
         return new DefaultStateMachineService(stateMachineFactory, stateMachineRuntimePersister);
     }
 }

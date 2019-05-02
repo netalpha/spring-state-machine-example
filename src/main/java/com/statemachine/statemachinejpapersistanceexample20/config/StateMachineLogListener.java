@@ -15,8 +15,8 @@
  */
 package com.statemachine.statemachinejpapersistanceexample20.config;
 
-import com.statemachine.statemachinejpapersistanceexample20.enums.PartyEvent;
-import com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus;
+import com.statemachine.statemachinejpapersistanceexample20.enums.Event;
+import com.statemachine.statemachinejpapersistanceexample20.enums.Status;
 import org.springframework.statemachine.StateContext;
 import org.springframework.statemachine.StateContext.Stage;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
@@ -24,7 +24,7 @@ import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import java.util.LinkedList;
 import java.util.List;
 
-public class StateMachineLogListener extends StateMachineListenerAdapter<PartyStatus, PartyEvent> {
+public class StateMachineLogListener extends StateMachineListenerAdapter<Status, Event> {
 
 	private final LinkedList<String> messages = new LinkedList<String>();
 
@@ -37,7 +37,7 @@ public class StateMachineLogListener extends StateMachineListenerAdapter<PartySt
 	}
 
 	@Override
-	public void stateContext(StateContext<PartyStatus, PartyEvent> stateContext) {
+	public void stateContext(StateContext<Status, Event> stateContext) {
 		if (stateContext.getStage() == Stage.STATE_ENTRY) {
 			messages.addFirst("Enter " + stateContext.getTarget().getId());
 		} else if (stateContext.getStage() == Stage.STATE_EXIT) {

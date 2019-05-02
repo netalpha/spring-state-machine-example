@@ -16,8 +16,8 @@
 package com.statemachine.statemachinejpapersistanceexample20.cotroller;
 
 import com.statemachine.statemachinejpapersistanceexample20.config.StateMachineLogListener;
-import com.statemachine.statemachinejpapersistanceexample20.enums.PartyEvent;
-import com.statemachine.statemachinejpapersistanceexample20.enums.PartyStatus;
+import com.statemachine.statemachinejpapersistanceexample20.enums.Event;
+import com.statemachine.statemachinejpapersistanceexample20.enums.Status;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateMachineContext;
@@ -40,13 +40,13 @@ public class StateMachineController {
 	private final static String[] MACHINES = new String[] { MACHINE_ID_1, MACHINE_ID_2 };
 
 	private final StateMachineLogListener listener = new StateMachineLogListener();
-	private StateMachine<PartyStatus, PartyEvent> currentStateMachine;
+	private StateMachine<Status, Event> currentStateMachine;
 
 	@Autowired
-	private StateMachineService<PartyStatus, PartyEvent> stateMachineService;
+	private StateMachineService<Status, Event> stateMachineService;
 
 	@Autowired
-	private StateMachinePersist<PartyStatus, PartyEvent, String> stateMachinePersist;
+	private StateMachinePersist<Status, Event, String> stateMachinePersist;
 
 	@RequestMapping("/")
 	public String home() {
@@ -55,16 +55,16 @@ public class StateMachineController {
 
 	@RequestMapping("/state")
 	public String feedAndGetStates(
-			@RequestParam(value = "events", required = false) List<PartyEvent> events,
+			@RequestParam(value = "events", required = false) List<Event> events,
 			@RequestParam(value = "machine", required = false, defaultValue = MACHINE_ID_1) String machine,
 			Model model) throws Exception {
-		StateMachine<PartyStatus, PartyEvent> stateMachine = getStateMachine(machine);
+		StateMachine<Status, Event> stateMachine = getStateMachine(machine);
 		if (events != null) {
-			for (PartyEvent event : events) {
+			for (Event event : events) {
 				stateMachine.sendEvent(event);
 			}
 		}
-		StateMachineContext<PartyStatus, PartyEvent> stateMachineContext = stateMachinePersist.read(machine);
+		StateMachineContext<Status, Event> stateMachineContext = stateMachinePersist.read(machine);
 		model.addAttribute("allMachines", MACHINES);
 		model.addAttribute("machine", machine);
 		model.addAttribute("allEvents", getEvents());
@@ -74,7 +74,7 @@ public class StateMachineController {
 	}
 
 //tag::snippetA[]
-	private synchronized StateMachine<PartyStatus, PartyEvent> getStateMachine(String machineId) throws Exception {
+	private synchronized StateMachine<Status, Event> getStateMachine(String machineId) throws Exception {
 		listener.resetMessages();
 		if (currentStateMachine == null) {
 			currentStateMachine = stateMachineService.acquireStateMachine(machineId);
@@ -91,8 +91,8 @@ public class StateMachineController {
 	}
 //end::snippetA[]
 
-	private PartyEvent[] getEvents() {
-		return EnumSet.allOf(PartyEvent.class).toArray(new PartyEvent[0]);
+	private Event[] getEvents() {
+		return EnumSet.allOf(Event.class).toArray(new Event[0]);
 	}
 
 	private String createMessages(List<String> messages) {
